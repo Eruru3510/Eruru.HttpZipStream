@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/解决方案项/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="samples/Eruru.HttpZipStreamSample/Eruru.HttpZipStreamSample.csproj" Id="82977321-567d-4895-8a4e-820554f1e94c" />
+  <Project Path="src/Eruru.HttpZipStream/Eruru.HttpZipStream.csproj" />
+  <Project Path="tests/Eruru.HttpZipStreamTests/Eruru.HttpZipStreamTests.csproj" Id="1ac466b1-5329-4df9-8fdc-6fdbf5ba2ab9" />
+</Solution>

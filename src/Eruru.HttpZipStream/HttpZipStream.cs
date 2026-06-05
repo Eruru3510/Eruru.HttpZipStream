@@ -19,16 +19,19 @@ namespace Eruru.HttpZipStream {
 		public override long Position { get; set; }
 		public bool IsZip64 { get; private set; }
 		public int HttpRequestCount { get; set; }
-		public HttpCompletionOption HttpCompletionOption { get; set; } = HttpCompletionOption.ResponseHeadersRead;
+#pragma warning disable CA1056 // 类 URI 属性不应是字符串
+		public string? Url { get; private set; }
+#pragma warning restore CA1056 // 类 URI 属性不应是字符串
 
 		const int Zip64EocdLength = 56;
 		const int Zip64LocatorLength = 20;
 		const int Zip64Length = Zip64EocdLength + Zip64LocatorLength;
 		const int EocdLength = 22;
 		const int CommentLength = ushort.MaxValue;
+		HttpCompletionOption HttpCompletionOption;
 		HttpClient? HttpClient;
 		Stream? CacheStream;
-		string? Url;
+		string? RawUrl;
 		int BufferSize;
 		long FileAreaLength;
 		long TargetIndex;
@@ -53,9 +56,10 @@ namespace Eruru.HttpZipStream {
 		) {
 #pragma warning restore CA1054 // 类 URI 参数不应为字符串
 			CheckDisposed ();
-			Url = url;
+			RawUrl = url;
 			HttpClient = httpClient;
 			HttpCompletionOption = httpCompletionOption;
+			Url = RawUrl;
 			return this;
 		}
 
@@ -385,12 +389,13 @@ namespace Eruru.HttpZipStream {
 		}
 
 		async Task<long?> GetFileLengthAsync (HttpMethod httpMethod, CancellationToken cancellationToken) {
-			using var httpRequestMessage = new HttpRequestMessage (httpMethod, Url);
+			using var httpRequestMessage = new HttpRequestMessage (httpMethod, RawUrl);
 			httpRequestMessage.Headers.Range = new (0, 0);
 			HttpRequestCount++;
 			using var httpResponseMessage = await HttpClient!.SendAsync (
 				httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken
 			).ConfigureAwait (false);
+			Url = httpResponseMessage.RequestMessage?.RequestUri?.ToString () ?? Url;
 			return httpResponseMessage.Content.Headers.ContentRange?.Length;
 		}
 
@@ -400,7 +405,7 @@ namespace Eruru.HttpZipStream {
 			if (length == 0) {
 				return;
 			}
-			using var httpRequestMessage = new HttpRequestMessage (HttpMethod.Get, Url);
+			using var httpRequestMessage = new HttpRequestMessage (HttpMethod.Get, RawUrl);
 			httpRequestMessage.Headers.Range = new (index, index + length - 1);
 			HttpRequestCount++;
 			using var httpResponseMessage = await HttpClient!.SendAsync (

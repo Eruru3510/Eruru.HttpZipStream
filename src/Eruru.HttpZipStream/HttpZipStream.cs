@@ -19,6 +19,7 @@ namespace Eruru.HttpZipStream {
 		public override long Position { get; set; }
 		public bool IsZip64 { get; private set; }
 		public int HttpRequestCount { get; set; }
+		public HttpCompletionOption HttpCompletionOption { get; set; } = HttpCompletionOption.ResponseHeadersRead;
 
 		const int Zip64EocdLength = 56;
 		const int Zip64LocatorLength = 20;
@@ -47,11 +48,14 @@ namespace Eruru.HttpZipStream {
 		}
 
 #pragma warning disable CA1054 // 类 URI 参数不应为字符串
-		public HttpZipStream ConfigureHttpClient (string url, HttpClient httpClient) {
+		public HttpZipStream ConfigureHttpClient (
+			string url, HttpClient httpClient, HttpCompletionOption httpCompletionOption = HttpCompletionOption.ResponseHeadersRead
+		) {
 #pragma warning restore CA1054 // 类 URI 参数不应为字符串
 			CheckDisposed ();
 			Url = url;
 			HttpClient = httpClient;
+			HttpCompletionOption = httpCompletionOption;
 			return this;
 		}
 
@@ -400,7 +404,7 @@ namespace Eruru.HttpZipStream {
 			httpRequestMessage.Headers.Range = new (index, index + length - 1);
 			HttpRequestCount++;
 			using var httpResponseMessage = await HttpClient!.SendAsync (
-				httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken
+				httpRequestMessage, HttpCompletionOption, cancellationToken
 			).ConfigureAwait (false);
 			using var inputStream = await httpResponseMessage.Content.ReadAsStreamAsync (
 #if NET

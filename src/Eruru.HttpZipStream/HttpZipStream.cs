@@ -129,14 +129,17 @@ namespace Eruru.HttpZipStream {
 			CheckDisposed ();
 			CheckBuild ();
 			CheckOpen ();
+			if (CacheStream == null) {
+				return 0;
+			}
 			var isHitCache = false;
 			count = (int)Math.Min (count, Length - Position);
 			if (Position >= TempFileIndex && Position - TempFileIndex + count <= TempFileLength) {
-				CacheStream!.Position = TargetLength + Position - TempFileIndex;
+				CacheStream.Position = TargetLength + Position - TempFileIndex;
 				isHitCache = true;
 			}
 			if (!isHitCache && Position >= TargetIndex && Position - TargetIndex + count <= TargetLength) {
-				CacheStream!.Position = Position - TargetIndex;
+				CacheStream.Position = Position - TargetIndex;
 				isHitCache = true;
 			}
 			if (!isHitCache) {
@@ -144,7 +147,7 @@ namespace Eruru.HttpZipStream {
 					$"The cache was not hit because the {nameof (PreloadAsync)} method was not called to prepare complete data or parsing failed."
 				);
 			}
-			var length = await CacheStream!.ReadAsync (
+			var length = await CacheStream.ReadAsync (
 #if NET
 				buffer.AsMemory (offset, count)
 #else
@@ -159,7 +162,10 @@ namespace Eruru.HttpZipStream {
 		public async Task OpenAsync<TContext> (Progress<TContext>? progress = null, CancellationToken cancellationToken = default) {
 			CheckDisposed ();
 			CheckBuild ();
-			using var cancellationTokenSource = new CancellationTokenSource (HttpClient!.Timeout);
+			if (HttpClient == null || CacheStream == null) {
+				return;
+			}
+			using var cancellationTokenSource = new CancellationTokenSource (HttpClient.Timeout);
 			using var cancellationTokenSource1 = CancellationTokenSource.CreateLinkedTokenSource (
 				cancellationTokenSource.Token, cancellationToken
 			);
@@ -172,7 +178,7 @@ namespace Eruru.HttpZipStream {
 			if (bufferLength < EocdLength) {
 				throw new FileLoadException ("Invalid ZIP file");
 			}
-			CacheStream!.Position = 0;
+			CacheStream.Position = 0;
 			await ReadRangeAsync (
 				fileLength - bufferLength, bufferLength, CacheStream, progress, cancellationToken
 			).ConfigureAwait (false);
@@ -286,15 +292,17 @@ namespace Eruru.HttpZipStream {
 				throw new ArgumentNullException (nameof (preloadRange));
 			}
 #endif
-			if (preloadRange.Index >= TempFileIndex && preloadRange.Index - TempFileIndex + preloadRange.Length <= TempFileLength) {
+			if (HttpClient == null || CacheStream == null
+				|| (preloadRange.Index >= TempFileIndex && preloadRange.Index - TempFileIndex + preloadRange.Length <= TempFileLength)
+			) {
 				return;
 			}
-			using var cancellationTokenSource = new CancellationTokenSource (HttpClient!.Timeout);
+			using var cancellationTokenSource = new CancellationTokenSource (HttpClient.Timeout);
 			using var cancellationTokenSource1 = CancellationTokenSource.CreateLinkedTokenSource (
 				cancellationTokenSource.Token, cancellationToken
 			);
 			cancellationToken = cancellationTokenSource1.Token;
-			CacheStream!.Position = TargetLength;
+			CacheStream.Position = TargetLength;
 			await ReadRangeAsync (
 				preloadRange.Index, preloadRange.Length, CacheStream, progress, cancellationToken
 			).ConfigureAwait (false);
@@ -389,10 +397,13 @@ namespace Eruru.HttpZipStream {
 		}
 
 		async Task<long?> GetFileLengthAsync (HttpMethod httpMethod, CancellationToken cancellationToken) {
+			if (HttpClient == null) {
+				return null;
+			}
 			using var httpRequestMessage = new HttpRequestMessage (httpMethod, RawUrl);
 			httpRequestMessage.Headers.Range = new (0, 0);
 			HttpRequestCount++;
-			using var httpResponseMessage = await HttpClient!.SendAsync (
+			using var httpResponseMessage = await HttpClient.SendAsync (
 				httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken
 			).ConfigureAwait (false);
 			Url = httpResponseMessage.RequestMessage?.RequestUri?.ToString () ?? Url;
@@ -402,13 +413,13 @@ namespace Eruru.HttpZipStream {
 		async Task ReadRangeAsync<TContext> (
 			long index, long length, Stream stream, Progress<TContext>? progress, CancellationToken cancellationToken
 		) {
-			if (length == 0) {
+			if (length == 0 || HttpClient == null) {
 				return;
 			}
 			using var httpRequestMessage = new HttpRequestMessage (HttpMethod.Get, RawUrl);
 			httpRequestMessage.Headers.Range = new (index, index + length - 1);
 			HttpRequestCount++;
-			using var httpResponseMessage = await HttpClient!.SendAsync (
+			using var httpResponseMessage = await HttpClient.SendAsync (
 				httpRequestMessage, HttpCompletionOption, cancellationToken
 			).ConfigureAwait (false);
 			using var inputStream = await httpResponseMessage.Content.ReadAsStreamAsync (

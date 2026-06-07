@@ -463,6 +463,9 @@ namespace Eruru.HttpZipStream {
 			Stream stream, Stream destinationStream, Progress<TContext>? progress, CancellationToken cancellationToken
 		) {
 			var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize), 0, BufferSize);
+			if (buffer.Array == null) {
+				return;
+			}
 			try {
 				progress?.Append (0);
 				while (true) {
@@ -488,9 +491,7 @@ namespace Eruru.HttpZipStream {
 					progress?.Append (readLength);
 				}
 			} finally {
-				if (buffer.Array != null) {
-					ArrayPool<byte>.Shared.Return (buffer.Array);
-				}
+				ArrayPool<byte>.Shared.Return (buffer.Array);
 			}
 		}
 
@@ -502,6 +503,9 @@ namespace Eruru.HttpZipStream {
 				return;
 			}
 			var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize));
+			if (buffer.Array == null) {
+				return;
+			}
 			try {
 				var remainingLength = length;
 				var currentIndex = index;
@@ -533,9 +537,7 @@ namespace Eruru.HttpZipStream {
 					remainingLength -= readLength;
 				}
 			} finally {
-				if (buffer.Array != null) {
-					ArrayPool<byte>.Shared.Return (buffer.Array);
-				}
+				ArrayPool<byte>.Shared.Return (buffer.Array);
 			}
 		}
 

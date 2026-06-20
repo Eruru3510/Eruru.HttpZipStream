@@ -7,8 +7,8 @@
 		<Authors>Eruru</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<Version>1.0.3-preview1</Version>
-		<AssemblyVersion>1.0.2</AssemblyVersion>
-		<FileVersion>1.0.2</FileVersion>
+		<AssemblyVersion>1.0.3</AssemblyVersion>
+		<FileVersion>1.0.3</FileVersion>
 		<RepositoryUrl>https://github.com/Eruru3510/Eruru.HttpZipStream</RepositoryUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

@@ -21,7 +21,7 @@ public class HttpZipStreamTest {
 			httpZipStream, System.IO.Compression.ZipArchiveMode.Read, false, Encoding.UTF8
 		);
 		var zipArchiveEntries = new List<IZipArchiveEntry> (
-			zipArchive.Entries.Select (x => new ZipArchiveEntry (x)).Where (x => !x.IsDirectory)
+			zipArchive.Entries.Select (static x => new ZipArchiveEntry (x)).Where (x => !x.IsDirectory)
 		);
 		var perloadRanges = httpZipStream.GetPreloadRanges (zipArchiveEntries, [
 			zipArchiveEntries[0], zipArchiveEntries[2], zipArchiveEntries[^4], zipArchiveEntries[^2], zipArchiveEntries[^1]

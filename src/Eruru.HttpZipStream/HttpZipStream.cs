@@ -125,9 +125,6 @@ public class HttpZipStream : Stream {
 		CheckDisposed ();
 		CheckBuild ();
 		CheckOpen ();
-		if (CacheStream == null) {
-			return 0;
-		}
 		var isHitCache = false;
 		var remainingLength = (int)Math.Min (
 #if NET
@@ -137,11 +134,11 @@ public class HttpZipStream : Stream {
 #endif
 		, Length - Position);
 		if (Position >= TempFileIndex && Position - TempFileIndex + remainingLength <= TempFileLength) {
-			CacheStream.Position = TargetLength + Position - TempFileIndex;
+			CacheStream!.Position = TargetLength + Position - TempFileIndex;
 			isHitCache = true;
 		}
 		if (!isHitCache && Position >= TargetIndex && Position - TargetIndex + remainingLength <= TargetLength) {
-			CacheStream.Position = Position - TargetIndex;
+			CacheStream!.Position = Position - TargetIndex;
 			isHitCache = true;
 		}
 		if (!isHitCache) {
@@ -149,7 +146,7 @@ public class HttpZipStream : Stream {
 				$"The cache was not hit because the {nameof (PreloadAsync)} method was not called to prepare complete data or parsing failed."
 			);
 		}
-		var length = await CacheStream.ReadAsync (
+		var length = await CacheStream!.ReadAsync (
 #if NET
 			buffer
 #else
@@ -163,10 +160,7 @@ public class HttpZipStream : Stream {
 	public async Task OpenAsync<TContext> (Progress<TContext>? progress = null, CancellationToken cancellationToken = default) {
 		CheckDisposed ();
 		CheckBuild ();
-		if (HttpClient == null || CacheStream == null) {
-			return;
-		}
-		using var cancellationTokenSource = new CancellationTokenSource (HttpClient.Timeout);
+		using var cancellationTokenSource = new CancellationTokenSource (HttpClient!.Timeout);
 		using var cancellationTokenSource1 = CancellationTokenSource.CreateLinkedTokenSource (
 			cancellationTokenSource.Token, cancellationToken
 		);
@@ -179,7 +173,7 @@ public class HttpZipStream : Stream {
 		if (bufferLength < EocdLength) {
 			throw new FileLoadException ("Invalid ZIP file");
 		}
-		CacheStream.Position = 0;
+		CacheStream!.Position = 0;
 		await ReadRangeAsync (
 			fileLength - bufferLength, bufferLength, CacheStream, progress, cancellationToken
 		).ConfigureAwait (false);
@@ -283,9 +277,6 @@ public class HttpZipStream : Stream {
 	public async Task PreloadAsync<TContext> (
 		PreloadRange preloadRange, Progress<TContext>? progress = null, CancellationToken cancellationToken = default
 	) {
-		CheckDisposed ();
-		CheckBuild ();
-		CheckOpen ();
 #if NET
 		ArgumentNullException.ThrowIfNull (preloadRange, nameof (preloadRange));
 #else
@@ -293,17 +284,18 @@ public class HttpZipStream : Stream {
 			throw new ArgumentNullException (nameof (preloadRange));
 		}
 #endif
-		if (HttpClient == null || CacheStream == null
-			|| (preloadRange.Index >= TempFileIndex && preloadRange.Index - TempFileIndex + preloadRange.Length <= TempFileLength)
-		) {
+		CheckDisposed ();
+		CheckBuild ();
+		CheckOpen ();
+		if (preloadRange.Index >= TempFileIndex && preloadRange.Index - TempFileIndex + preloadRange.Length <= TempFileLength) {
 			return;
 		}
-		using var cancellationTokenSource = new CancellationTokenSource (HttpClient.Timeout);
+		using var cancellationTokenSource = new CancellationTokenSource (HttpClient!.Timeout);
 		using var cancellationTokenSource1 = CancellationTokenSource.CreateLinkedTokenSource (
 			cancellationTokenSource.Token, cancellationToken
 		);
 		cancellationToken = cancellationTokenSource1.Token;
-		CacheStream.Position = TargetLength;
+		CacheStream!.Position = TargetLength;
 		await ReadRangeAsync (
 			preloadRange.Index, preloadRange.Length, CacheStream, progress, cancellationToken
 		).ConfigureAwait (false);
@@ -398,13 +390,10 @@ public class HttpZipStream : Stream {
 	}
 
 	async Task<long?> GetFileLengthAsync (HttpMethod httpMethod, CancellationToken cancellationToken) {
-		if (HttpClient == null) {
-			return null;
-		}
 		using var httpRequestMessage = new HttpRequestMessage (httpMethod, RawUri);
 		httpRequestMessage.Headers.Range = new (0, 0);
 		HttpRequestCount++;
-		using var httpResponseMessage = await HttpClient.SendAsync (
+		using var httpResponseMessage = await HttpClient!.SendAsync (
 			httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken
 		).ConfigureAwait (false);
 		Uri = httpResponseMessage.RequestMessage?.RequestUri ?? Uri;
@@ -414,13 +403,10 @@ public class HttpZipStream : Stream {
 	async Task ReadRangeAsync<TContext> (
 		long index, long length, Stream stream, Progress<TContext>? progress, CancellationToken cancellationToken
 	) {
-		if (length == 0 || HttpClient == null) {
-			return;
-		}
 		using var httpRequestMessage = new HttpRequestMessage (HttpMethod.Get, RawUri);
 		httpRequestMessage.Headers.Range = new (index, index + length - 1);
 		HttpRequestCount++;
-		using var httpResponseMessage = await HttpClient.SendAsync (
+		using var httpResponseMessage = await HttpClient!.SendAsync (
 			httpRequestMessage, HttpCompletionOption, cancellationToken
 		).ConfigureAwait (false);
 		using var inputStream = await httpResponseMessage.Content.ReadAsStreamAsync (
@@ -464,9 +450,6 @@ public class HttpZipStream : Stream {
 		Stream stream, Stream destinationStream, Progress<TContext>? progress, CancellationToken cancellationToken
 	) {
 		var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize), 0, BufferSize);
-		if (buffer.Array == null) {
-			return;
-		}
 		try {
 			progress?.Append (0);
 			while (true) {
@@ -492,7 +475,7 @@ public class HttpZipStream : Stream {
 				progress?.Append (readLength);
 			}
 		} finally {
-			ArrayPool<byte>.Shared.Return (buffer.Array);
+			ArrayPool<byte>.Shared.Return (buffer.Array!);
 		}
 	}
 
@@ -500,13 +483,7 @@ public class HttpZipStream : Stream {
 		Stream stream, long index, Stream destinationStream, long destinationIndex, long length,
 		CancellationToken cancellationToken
 	) {
-		if (length == 0) {
-			return;
-		}
-		var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize));
-		if (buffer.Array == null) {
-			return;
-		}
+		var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize), 0, BufferSize);
 		try {
 			var remainingLength = length;
 			var currentIndex = index;
@@ -538,7 +515,7 @@ public class HttpZipStream : Stream {
 				remainingLength -= readLength;
 			}
 		} finally {
-			ArrayPool<byte>.Shared.Return (buffer.Array);
+			ArrayPool<byte>.Shared.Return (buffer.Array!);
 		}
 	}
 

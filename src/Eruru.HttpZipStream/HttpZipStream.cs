@@ -451,7 +451,6 @@ public class HttpZipStream : Stream {
 	) {
 		var buffer = new ArraySegment<byte> (ArrayPool<byte>.Shared.Rent (BufferSize), 0, BufferSize);
 		try {
-			progress?.Append (0);
 			while (true) {
 				var readLength = await stream.ReadAsync (
 #if NET
